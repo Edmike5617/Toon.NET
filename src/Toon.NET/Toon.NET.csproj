@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+
+    <!-- NuGet 元数据 -->
+    <PackageId>Toon.NET</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>Toon.NET Contributors</Authors>
+    <Description>Token-Oriented Object Notation (TOON) - a token-efficient JSON alternative for LLM prompts, .NET implementation with System.Text.Json-style API.</Description>
+    <PackageProjectUrl>https://token-ai.cn</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/AIDotNet/Toon.NET</RepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <IncludeSymbols>false</IncludeSymbols>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 将 README 打包进入 NuGet，并作为包级 Readme 显示 -->
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>
