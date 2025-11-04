@@ -1,6 +1,11 @@
 using System.Collections.Concurrent;
 using System.Text;
 using Spectre.Console;
+using System.Text.Json;
+using System.Globalization;
+using YamlDotNet.Serialization;
+using AIDotNet.Toon;
+using Spectre.Console.Rendering;
 
 namespace AIDotNet.Toon.ModelBenches;
 
@@ -14,10 +19,10 @@ internal static class Program
         global::AIDotNet.Toon.ModelBenches.BenchmarkFormat.JsonCompact
     };
 
-    public static async Task Main()
+    public static async Task Main(string[] args)
     {
         Console.OutputEncoding = Encoding.UTF8;
-    Console.WriteLine("模型格式准确性基准（.NET）");
+        Console.WriteLine("模型格式准确性基准（.NET）");
 
         if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("OPENAI_API_KEY")))
         {
@@ -30,6 +35,25 @@ internal static class Program
         var runs = GetRuns();
         var totalStepsPerModel = tasks.Count * runs * Formats.Length;
         var allModelResults = new ConcurrentBag<ModelResults>();
+
+        // 启动一个后台 Live 面板，用于实时刷新汇总信息
+        using var summaryCts = new CancellationTokenSource();
+        var liveTask = Task.Run(() =>
+        {
+            try
+            {
+                AnsiConsole.Live(RenderSummaryRenderable(allModelResults))
+                    .Start(ctx =>
+                    {
+                        while (!summaryCts.Token.IsCancellationRequested)
+                        {
+                            ctx.UpdateTarget(RenderSummaryRenderable(allModelResults));
+                            Thread.Sleep(400);
+                        }
+                    });
+            }
+            catch { }
+        });
 
         await AnsiConsole.Progress()
             .Columns(new ProgressColumn[]
@@ -67,11 +91,18 @@ internal static class Program
                 await Task.WhenAll(modelJobs);
             });
 
+        // 停止实时面板刷新并等待任务结束
+        summaryCts.Cancel();
+        try { await liveTask.ConfigureAwait(false); } catch { }
+
+        // 最终输出一次完整的汇总面板
+        RenderSummaryPanel(allModelResults.ToList());
+
         // Generate single unified report with all models
         var outDir = EnsureResultsDir();
         var reportPath = Path.Combine(outDir, "benchmark-report.html");
         ReportGenerator.GenerateUnifiedHtml(allModelResults.ToList(), reportPath);
-        AnsiConsole.MarkupLine($"[green]综合报告已保存至[/] [link]{Path.GetRelativePath(GetRepoRoot(), reportPath).Replace('\\','/')}[/]");
+        AnsiConsole.MarkupLine($"[green]综合报告已保存至[/] [link]{Path.GetRelativePath(GetRepoRoot(), reportPath).Replace('\\', '/')}[/]");
     }
 
     private static async Task RunOneAsync(global::AIDotNet.Toon.ModelBenches.ModelClient client, global::AIDotNet.Toon.ModelBenches.BenchmarkTask t, object input, global::AIDotNet.Toon.ModelBenches.BenchmarkFormat fmt, ConcurrentBag<global::AIDotNet.Toon.ModelBenches.SingleResult> sink)
@@ -87,6 +118,9 @@ internal static class Program
 
             var resp = await client.ChatAsync(new[] { system, user });
 
+            // 输出格式合规性（不影响原有正确性评分）
+            var formatOk = TryNormalizeScalar(fmt, resp.Text, out var _);
+
             var correct = t.Scorer(resp.Text, input);
             sink.Add(new SingleResult
             {
@@ -94,6 +128,7 @@ internal static class Program
                 TaskName = t.Name,
                 FormatDisplay = Formatters.DisplayName(fmt),
                 Correct = correct,
+                FormatValid = formatOk,
                 PromptTokens = resp.PromptTokens,
                 CompletionTokens = resp.CompletionTokens,
                 TotalTokens = resp.TotalTokens,
@@ -148,7 +183,7 @@ internal static class Program
                         {
                             throttle.Release();
                             var last = Interlocked.Increment(ref done);
-                            
+
                             // 限制更新频率：每200ms更新一次，或者每完成10%任务更新一次
                             bool shouldUpdate = false;
                             lock (updateLock)
@@ -168,9 +203,9 @@ internal static class Program
                                 var snapOk = results.Count(r => r.Correct);
                                 var snapFail = results.Count(r => !r.Correct && !r.Answer.StartsWith("[error]"));
                                 var snapErr = results.Count(r => r.Answer.StartsWith("[error]"));
-                                ok = snapOk; 
+                                ok = snapOk;
                                 fail = snapFail + snapErr;
-                                
+
                                 progressTask.Value = last;
                                 progressTask.Description = $"[blue]{model}[/]  ok:[green]{ok}[/]  fail:[red]{fail}[/]  done:{last}/{totalSteps}";
                             }
@@ -188,17 +223,12 @@ internal static class Program
             Format = ParseFormat(g.Key),
             FormatDisplay = g.Key,
             Accuracy = g.Average(r => r.Correct ? 1.0 : 0.0),
+            FormatValidity = g.Average(r => r.FormatValid ? 1.0 : 0.0),
             AvgPromptTokens = g.Average(r => r.PromptTokens),
             AvgCompletionTokens = g.Average(r => r.CompletionTokens)
         }).ToList();
 
-        // Print summary table for the model after completion
-        var table = new Table().Title($"[yellow]{model} 总结[/]").AddColumns("格式", "准确率 %", "提示 Tokens", "生成 Tokens");
-        foreach (var s in summary.OrderBy(s => s.FormatDisplay))
-        {
-            table.AddRow(s.FormatDisplay, (s.Accuracy * 100).ToString("0.0"), s.AvgPromptTokens.ToString("0.0"), s.AvgCompletionTokens.ToString("0.0"));
-        }
-        AnsiConsole.Write(table);
+        // 不在此处打印表格（由主流程统一呈现），返回模型结果
 
         return new ModelResults
         {
@@ -206,6 +236,28 @@ internal static class Program
             Results = results.OrderBy(r => r.TaskName).ThenBy(r => r.FormatDisplay).ToList(),
             Summary = summary
         };
+    }
+
+    // 返回一个可用于 Live 更新的 IRenderable（面板）
+    private static IRenderable RenderSummaryRenderable(IEnumerable<ModelResults> allResults)
+    {
+        var table = new Table().Title("[yellow]模型汇总（按模型）[/]").AddColumns("模型", "平均准确率 %", "平均合规率 %", "平均提示 Tokens", "平均生成 Tokens");
+        foreach (var mr in allResults.OrderBy(m => m.Model))
+        {
+            var avgAcc = mr.Summary.Any() ? mr.Summary.Average(s => s.Accuracy) * 100.0 : 0.0;
+            var avgValid = mr.Summary.Any() ? mr.Summary.Average(s => s.FormatValidity) * 100.0 : 0.0;
+            var avgPrompt = mr.Summary.Any() ? mr.Summary.Average(s => s.AvgPromptTokens) : 0.0;
+            var avgComp = mr.Summary.Any() ? mr.Summary.Average(s => s.AvgCompletionTokens) : 0.0;
+            table.AddRow(mr.Model, avgAcc.ToString("0.0"), avgValid.ToString("0.0"), avgPrompt.ToString("0.0"), avgComp.ToString("0.0"));
+        }
+        return new Panel(table).Expand();
+    }
+
+    // 在主流程打印单一的汇总面板（在所有模型完成或部分完成后更新）
+    // 此方法用于生成并输出最终的汇总面板
+    private static void RenderSummaryPanel(IEnumerable<ModelResults> allResults)
+    {
+        AnsiConsole.Write(RenderSummaryRenderable(allResults));
     }
 
     private static string EnsureResultsDir()
@@ -299,5 +351,118 @@ internal static class Program
             return Math.Clamp(n, 1, 8);
         }
         return 2; // reasonable default
+    }
+
+    // ===== 输出格式合规性检测（不改变原有评分，只做额外分类统计）=====
+    private static bool TryNormalizeScalar(BenchmarkFormat fmt, string raw, out string normalized)
+    {
+        normalized = string.Empty;
+        if (raw is null) return false;
+
+        var payload = ExtractCodePayload(raw).Trim();
+        if (payload.Length == 0) return false;
+
+        return fmt switch
+        {
+            BenchmarkFormat.JsonPretty => TryParseJsonScalar(payload, out normalized),
+            BenchmarkFormat.JsonCompact => TryParseJsonScalar(payload, out normalized),
+            BenchmarkFormat.Yaml => TryParseYamlScalar(payload, out normalized),
+            BenchmarkFormat.Toon => TryParseToonScalar(payload, out normalized),
+            _ => false
+        };
+    }
+
+    // 支持 ```lang ... ``` 代码块，或直接纯文本
+    private static string ExtractCodePayload(string s)
+    {
+        var txt = (s ?? string.Empty).Trim();
+        const string fence = "```";
+        int i = txt.IndexOf(fence, StringComparison.Ordinal);
+        if (i < 0) return txt;
+
+        int j = txt.IndexOf(fence, i + fence.Length, StringComparison.Ordinal);
+        if (j < 0) return txt;
+
+        var inner = txt.Substring(i + fence.Length, j - (i + fence.Length));
+        // 去掉可选语言行
+        var nl = inner.IndexOf('\n');
+        if (nl >= 0)
+            inner = inner.Substring(nl + 1);
+        return inner.Trim();
+    }
+
+    private static bool TryParseJsonScalar(string s, out string normalized)
+    {
+        normalized = string.Empty;
+        try
+        {
+            using var doc = JsonDocument.Parse(s);
+            var root = doc.RootElement;
+            switch (root.ValueKind)
+            {
+                case JsonValueKind.String:
+                    normalized = root.GetString() ?? string.Empty; return true;
+                case JsonValueKind.Number:
+                    normalized = root.GetRawText(); return true;
+                case JsonValueKind.True:
+                    normalized = "true"; return true;
+                case JsonValueKind.False:
+                    normalized = "false"; return true;
+                case JsonValueKind.Null:
+                    normalized = "null"; return true;
+                default:
+                    return false;
+            }
+        }
+        catch { return false; }
+    }
+
+    private static bool TryParseYamlScalar(string s, out string normalized)
+    {
+        normalized = string.Empty;
+        try
+        {
+            var des = new DeserializerBuilder().Build();
+            var obj = des.Deserialize<object>(s);
+
+            if (obj is null) { normalized = "null"; return true; }
+            if (obj is string str) { normalized = str.Trim(); return true; }
+            if (obj is bool b) { normalized = b ? "true" : "false"; return true; }
+
+            switch (obj)
+            {
+                case sbyte or byte or short or ushort or int or uint or long or ulong:
+                    normalized = Convert.ToString(obj, CultureInfo.InvariantCulture) ?? string.Empty; return true;
+                case float or double or decimal:
+                    normalized = Convert.ToString(obj, CultureInfo.InvariantCulture) ?? string.Empty; return true;
+            }
+            return false;
+        }
+        catch { return false; }
+    }
+
+    private static bool TryParseToonScalar(string s, out string normalized)
+    {
+        normalized = string.Empty;
+        try
+        {
+            var elem = ToonSerializer.Deserialize<JsonElement>(s, new ToonSerializerOptions());
+            switch (elem.ValueKind)
+            {
+                case JsonValueKind.String:
+                    normalized = elem.GetString() ?? string.Empty; return true;
+                case JsonValueKind.Number:
+                    normalized = elem.GetRawText(); return true;
+                case JsonValueKind.True:
+                    normalized = "true"; return true;
+                case JsonValueKind.False:
+                    normalized = "false"; return true;
+                case JsonValueKind.Null:
+                    normalized = "null"; return true;
+                default:
+                    return false;
+            }
+        }
+        catch { return false; }
     }
 }

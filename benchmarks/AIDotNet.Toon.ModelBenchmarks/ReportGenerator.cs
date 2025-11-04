@@ -42,6 +42,13 @@ internal static class ReportGenerator
         sb.AppendLine("    <div><h3>各模型在不同任务上的平均准确率</h3><div id=\"accByTask\" class=\"chart\"></div></div>");
         sb.AppendLine("  </div>");
 
+        // 输出格式合规率对比
+        sb.AppendLine("  <h2>输出格式合规率对比</h2>");
+        sb.AppendLine("  <div class=\"grid\">");
+        sb.AppendLine("    <div><h3>各模型在不同格式下的合规率</h3><div id=\"fmtValidByFormat\" class=\"chart\"></div></div>");
+        sb.AppendLine("    <div><h3>各模型在不同任务上的平均合规率</h3><div id=\"fmtValidByTask\" class=\"chart\"></div></div>");
+        sb.AppendLine("  </div>");
+
         // Token 消耗对比
         sb.AppendLine("  <h2>Token 消耗对比（计量单位：个）</h2>");
         sb.AppendLine("  <div class=\"grid\">");
@@ -61,14 +68,14 @@ internal static class ReportGenerator
         // 综合数据表
         sb.AppendLine("  <h2>汇总数据表</h2>");
         sb.AppendLine("  <table>");
-        sb.AppendLine("    <thead><tr><th>模型</th><th>格式</th><th>准确率 (%)</th><th>平均提示 Token 数</th><th>平均生成 Token 数</th><th>平均总 Token 数</th></tr></thead>");
+        sb.AppendLine("    <thead><tr><th>模型</th><th>格式</th><th>准确率 (%)</th><th>输出格式合规率 (%)</th><th>平均提示 Token 数</th><th>平均生成 Token 数</th><th>平均总 Token 数</th></tr></thead>");
         sb.AppendLine("    <tbody>");
         foreach (var model in allModels.OrderBy(m => m.Model))
         {
             foreach (var s in model.Summary.OrderBy(s => s.FormatDisplay))
             {
                 var avgTotal = s.AvgPromptTokens + s.AvgCompletionTokens;
-                sb.AppendLine($"      <tr><td>{HtmlEscape(model.Model)}</td><td>{HtmlEscape(s.FormatDisplay)}</td><td>{(s.Accuracy * 100):F1}</td><td>{s.AvgPromptTokens:F1}</td><td>{s.AvgCompletionTokens:F1}</td><td>{avgTotal:F1}</td></tr>");
+                sb.AppendLine($"      <tr><td>{HtmlEscape(model.Model)}</td><td>{HtmlEscape(s.FormatDisplay)}</td><td>{(s.Accuracy * 100):F1}</td><td>{(s.FormatValidity * 100):F1}</td><td>{s.AvgPromptTokens:F1}</td><td>{s.AvgCompletionTokens:F1}</td><td>{avgTotal:F1}</td></tr>");
             }
         }
         sb.AppendLine("    </tbody>");
@@ -84,26 +91,37 @@ internal static class ReportGenerator
 
         // 准确率：模型×格式
         var accByFormat = new Dictionary<string, Dictionary<string, double>>();
+        var formatValidByFormat = new Dictionary<string, Dictionary<string, double>>();
         foreach (var model in allModels)
         {
             var map = new Dictionary<string, double>();
+            var map2 = new Dictionary<string, double>();
             foreach (var s in model.Summary)
+            {
                 map[s.FormatDisplay] = Math.Round(s.Accuracy * 100.0, 1);
+                map2[s.FormatDisplay] = Math.Round(s.FormatValidity * 100.0, 1);
+            }
             accByFormat[model.Model] = map;
+            formatValidByFormat[model.Model] = map2;
         }
 
         // 准确率：模型×任务
         var accByTask = new Dictionary<string, Dictionary<string, double>>();
+        var fmtValidByTask = new Dictionary<string, Dictionary<string, double>>();
         foreach (var model in allModels)
         {
             var map = new Dictionary<string, double>();
+            var vmap = new Dictionary<string, double>();
             foreach (var task in allTasks)
             {
                 var taskResults = model.Results.Where(r => r.TaskName == task).ToList();
                 double taskAcc = taskResults.Count == 0 ? 0 : taskResults.Average(r => r.Correct ? 1.0 : 0.0);
+                double taskValid = taskResults.Count == 0 ? 0 : taskResults.Average(r => r.FormatValid ? 1.0 : 0.0);
                 map[task] = Math.Round(taskAcc * 100.0, 1);
+                vmap[task] = Math.Round(taskValid * 100.0, 1);
             }
             accByTask[model.Model] = map;
+            fmtValidByTask[model.Model] = vmap;
         }
 
         // Token 消耗
@@ -152,6 +170,8 @@ internal static class ReportGenerator
         sb.Append("    const allTasks = "); sb.Append(J(allTasks)); sb.AppendLine(";");
         sb.Append("    const accByFormat = "); sb.Append(J(accByFormat)); sb.AppendLine(";");
         sb.Append("    const accByTask = "); sb.Append(J(accByTask)); sb.AppendLine(";");
+        sb.Append("    const formatValidByFormat = "); sb.Append(J(formatValidByFormat)); sb.AppendLine(";");
+        sb.Append("    const fmtValidByTask = "); sb.Append(J(fmtValidByTask)); sb.AppendLine(";");
         sb.Append("    const promptTokensByFormat = "); sb.Append(J(promptTokensByFormat)); sb.AppendLine(";");
         sb.Append("    const completionTokensByFormat = "); sb.Append(J(completionTokensByFormat)); sb.AppendLine(";");
         sb.Append("    const totalTokensByFormat = "); sb.Append(J(totalTokensByFormat)); sb.AppendLine(";");
@@ -165,6 +185,12 @@ internal static class ReportGenerator
 
         sb.AppendLine("    const accByTaskTraces = modelNames.map(m => ({ x: allTasks, y: allTasks.map(t => accByTask[m][t]), name: m, type: 'bar' }));");
         sb.AppendLine("    Plotly.newPlot('accByTask', accByTaskTraces, { barmode: 'group', yaxis: { title: '准确率（%）', range: [0, 100] }, xaxis: { title: '任务' }, margin: { t: 20, r: 10, l: 60, b: 120 }, legend: { orientation: 'h' } }, { responsive: true });");
+
+        sb.AppendLine("    const fmtValidByFormatTraces = modelNames.map(m => ({ x: formats, y: formats.map(f => formatValidByFormat[m][f]), name: m, type: 'bar' }));");
+        sb.AppendLine("    Plotly.newPlot('fmtValidByFormat', fmtValidByFormatTraces, { barmode: 'group', yaxis: { title: '输出格式合规率（%）', range: [0, 100] }, xaxis: { title: '格式' }, margin: { t: 20, r: 10, l: 60, b: 80 }, legend: { orientation: 'h' } }, { responsive: true });");
+
+        sb.AppendLine("    const fmtValidByTaskTraces = modelNames.map(m => ({ x: allTasks, y: allTasks.map(t => fmtValidByTask[m][t]), name: m, type: 'bar' }));");
+        sb.AppendLine("    Plotly.newPlot('fmtValidByTask', fmtValidByTaskTraces, { barmode: 'group', yaxis: { title: '输出格式合规率（%）', range: [0, 100] }, xaxis: { title: '任务' }, margin: { t: 20, r: 10, l: 60, b: 120 }, legend: { orientation: 'h' } }, { responsive: true });");
 
         sb.AppendLine("    const promptTokensTraces = modelNames.map(m => ({ x: formats, y: formats.map(f => promptTokensByFormat[m][f]), name: m, type: 'bar' }));");
         sb.AppendLine("    Plotly.newPlot('promptTokens', promptTokensTraces, { barmode: 'group', yaxis: { title: '平均提示 Token 数量（个）' }, xaxis: { title: '格式' }, margin: { t: 20, r: 10, l: 80, b: 80 }, legend: { orientation: 'h' } }, { responsive: true });");
@@ -204,6 +230,7 @@ internal sealed class SingleResult
     public string TaskName { get; init; } = string.Empty;
     public string FormatDisplay { get; init; } = string.Empty;
     public bool Correct { get; init; }
+    public bool FormatValid { get; init; }
     public int PromptTokens { get; init; }
     public int CompletionTokens { get; init; }
     public int TotalTokens { get; init; }
@@ -215,6 +242,7 @@ internal sealed class FormatSummary
     public BenchmarkFormat Format { get; init; }
     public string FormatDisplay { get; init; } = string.Empty;
     public double Accuracy { get; init; }
+    public double FormatValidity { get; init; }
     public double AvgPromptTokens { get; init; }
     public double AvgCompletionTokens { get; init; }
 }
