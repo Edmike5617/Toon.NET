@@ -4,7 +4,7 @@ using System.Text.Json;
 using AIDotNet.Toon;
 using Xunit;
 
-namespace Toon.Tests
+namespace AIDotNetToon.Tests
 {
     /// <summary>
     /// 覆盖更复杂的 TOON 结构解码用例：

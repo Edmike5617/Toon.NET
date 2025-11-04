@@ -4,7 +4,7 @@ using System.Text.Json;
 using AIDotNet.Toon;
 using Xunit;
 
-namespace Toon.Tests
+namespace AIDotNetToon.Tests
 {
     public class EncodeTests
     {

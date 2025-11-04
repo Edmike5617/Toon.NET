@@ -4,7 +4,7 @@ using System.Text.Json;
 using AIDotNet.Toon;
 using Xunit;
 
-namespace Toon.Tests
+namespace AIDotNetToon.Tests
 {
     /// <summary>
     /// 解码与严格模式相关的覆盖项占位测试。
